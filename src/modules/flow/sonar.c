@@ -52,21 +52,33 @@
 #include "sonar.h"
 #include "sonar_mode_filter.h"
 
-#define SONAR_SCALE	1000.0f
-#define SONAR_MIN	0.12f		/** 0.12m sonar minimum distance */
-#define SONAR_MAX	3.5f		/** 3.50m sonar maximum distance */
+#ifdef SONAR_READ_FROM_ADC
+#define VCC (5.0)
+#define VOLTAGE2DISTENCE_FACTOR (VCC/1024.0) /** analog voltage with a scaling factor,mV->cm */
 
+#define SONAR_SCALE	100.0f
+#define SONAR_MIN	0.20f		/** 0.20m sonar minimum distance */
+#define SONAR_MAX	5.0f		/** 5.0m sonar maximum distance */
+#else
+#define SONAR_SCALE	1000.0f
+#define SONAR_MIN	0.15f		/** 0.15m sonar minimum distance */
+#define SONAR_MAX	3.5f		/** 3.5m sonar maximum distance */
+#endif
 #define atoi(nptr)  strtol((nptr), NULL, 10)
 extern uint32_t get_boot_time_us(void);
 
+#ifndef SONAR_READ_FROM_ADC
 static char data_buffer[5]; // array for collecting decoded data
-
+#endif
 static volatile uint32_t last_measure_time = 0;
 static volatile uint32_t measure_time = 0;
 static volatile float dt = 0.0f;
 static volatile int valid_data;
+
+#ifndef SONAR_READ_FROM_ADC
 static volatile int data_counter = 0;
 static volatile int data_valid = 0;
+#endif
 static volatile int new_value = 0;
 
 static volatile uint32_t sonar_measure_time_interrupt = 0;
@@ -83,6 +95,22 @@ float sonar_raw = 0.0f;  // m
 float sonar_mode = 0.0f;
 bool sonar_valid = false;				/**< the mode of all sonar measurements */
 
+
+#ifdef	SONAR_READ_FROM_ADC
+/**
+  * @brief  Triggers the ADC to measure the next value
+  *
+  * It will trigger a interrupt when measure complete 
+  *
+  * @author zcd
+*/
+void adc_trigger(){
+  /* Start the ADC Convesation to get the last value */ 
+  ADC_SoftwareStartConv(ADC1, ENABLE);
+}  
+#endif
+
+
 /**
   * @brief  Triggers the sonar to measure the next value
   *
@@ -90,7 +118,74 @@ bool sonar_valid = false;				/**< the mode of all sonar measurements */
   */
 void sonar_trigger(){
 	GPIO_SetBits(GPIOE, GPIO_Pin_8);
+#ifdef	SONAR_READ_FROM_ADC
+	adc_trigger();	
+#endif
+
 }
+
+
+
+
+#ifdef	SONAR_READ_FROM_ADC
+
+/**
+  * @brief  Sonar adc interrupt handler
+  * @author zcd
+  *
+  */
+void ADC1_IRQHandler(void)
+{
+
+	if (USART_GetITStatus(ADC1, ADC_IT_EOC) != RESET)
+	{
+		/* Read one byte from the receive ADC register */
+		uint16_t data = ADC_GetConversionValue( ADC1 ) ;
+
+		/* set sonar pin 4 to low -> we want triggered mode */
+		GPIO_ResetBits(GPIOE, GPIO_Pin_8);
+
+		/* caculate the distence, mV -- > cm */
+		int temp = data * VOLTAGE2DISTENCE_FACTOR;
+		
+		/* use real-world maximum ranges to cut off pure noise */
+		if ((temp > SONAR_MIN*SONAR_SCALE) && (temp < SONAR_MAX*SONAR_SCALE))
+		{
+			/* it is in normal sensor range, take it */
+			last_measure_time = measure_time;
+			measure_time = get_boot_time_us();
+			sonar_measure_time_interrupt = measure_time;
+			dt = ((float)(measure_time - last_measure_time)) / 1000000.0f;
+		
+			valid_data = temp;
+			// the mode filter turned out to be more problematic
+			// than using the raw value of the sonar
+			//insert_sonar_value_and_get_mode_value(valid_data / SONAR_SCALE);
+			sonar_mode = valid_data / SONAR_SCALE;
+			new_value = 1;
+			sonar_valid = true;
+		} else {
+			sonar_valid = false;
+		}
+
+		ADC_ClearITPendingBit( ADC1, ADC_IT_EOC );
+	}
+	else if (USART_GetITStatus(ADC1, ADC_IT_AWD) != RESET)
+	{
+		ADC_ClearITPendingBit( ADC1, ADC_IT_AWD );
+	}
+	else if (USART_GetITStatus(ADC1, ADC_IT_JEOC) != RESET)
+	{
+		ADC_ClearITPendingBit( ADC1, ADC_IT_JEOC );
+	}
+	else if (USART_GetITStatus(ADC1, ADC_IT_OVR) != RESET)
+	{
+		ADC_ClearITPendingBit( ADC1, ADC_IT_OVR );
+	}
+}
+
+#endif
+
 
 /**
   * @brief  Sonar interrupt handler
@@ -213,6 +308,69 @@ void sonar_config(void)
 
 	GPIO_InitTypeDef GPIO_InitStructure;
 
+#ifdef	SONAR_READ_FROM_ADC
+	/* Enable the ADC interface clock using */
+	RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1, ENABLE); 
+
+	/* ADC pins configuration,Enable the clock for the ADC GPIOs  */
+	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC, ENABLE);	
+	
+	/* Configure these ADC pins in analog mode using */
+	/* Configure ADC123_IN10  pin in anlog mode */
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_0;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AN;
+	GPIO_InitStructure.GPIO_OType = GPIO_OType_OD;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
+	GPIO_Init(GPIOC, &GPIO_InitStructure);
+
+
+
+	/* ADC1 common configuration */
+	ADC_CommonInitTypeDef ADC_CommonInitStruct;
+	ADC_CommonStructInit( &ADC_CommonInitStruct );
+	ADC_CommonInitStruct->ADC_Mode = ADC_Mode_Independent;						/* Initialize the ADC_Mode member */
+	ADC_CommonInitStruct->ADC_Prescaler = ADC_Prescaler_Div2;					/* initialize the ADC_Prescaler member */
+	ADC_CommonInitStruct->ADC_DMAAccessMode = ADC_DMAAccessMode_Disabled;		/* Initialize the ADC_DMAAccessMode member */
+	ADC_CommonInitStruct->ADC_TwoSamplingDelay = ADC_TwoSamplingDelay_5Cycles;	/* Initialize the ADC_TwoSamplingDelay member */
+	ADC_CommonInit( &ADC_CommonInitStruct );	
+
+	ADC_InitTypeDef ADC_InitStructure;
+	/*  Configure the ADC Prescaler, conversion resolution and data  */
+	ADC_StructInit( &ADC_InitStructure );
+	ADC_InitStructure.ADC_Resolution =  ADC_Resolution_12b;  
+	ADC_InitStructure.ADC_ScanConvMode = DISABLE ;  
+	ADC_InitStructure.ADC_ContinuousConvMode = ENABLE;
+	ADC_InitStructure.ADC_ExternalTrigConv = ADC_ExternalTrigConv_T1_CC1; 
+	ADC_InitStructure.ADC_ExternalTrigConvEdge = ADC_ExternalTrigConvEdge_None; 
+	ADC_InitStructure.ADC_DataAlign = ADC_DataAlign_Right;
+	ADC_InitStructure.ADC_NbrOfConversion = 1;
+	ADC_Init(ADC1, &ADC_InitStructure);
+
+	
+	/* configure with ADC channel 10 */ 
+	ADC_RegularChannelConfig(ADC1, ADC_Channel_10, 1, ADC_SampleTime_144Cycles);
+
+	/* Configures the nested vectored interrupt controller. */
+	NVIC_InitTypeDef NVIC_InitStructure;
+
+	/* Enable the ADCx Interrupt */
+	NVIC_InitStructure.NVIC_IRQChannel = ADC_IRQn;
+	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+	NVIC_Init(&NVIC_InitStructure);
+	
+	/* Enables the End of  ADC interrupts conversion interrupt mask . */
+	ADC_ITConfig( ADC1, ADC_IT_EOC  , ENABLE) ;
+
+	/* Activate the ADC peripheral */
+	ADC_Cmd(ADC1, ENABLE);
+
+	/* Start the ADC Convesation */ 
+	ADC_SoftwareStartConv(ADC1, ENABLE);
+
+#else
 	/* Enable GPIO clocks */
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOE, ENABLE);
 
@@ -268,6 +426,9 @@ void sonar_config(void)
 	USART_ITConfig(UART4, USART_IT_RXNE, ENABLE);
 
 	USART_Cmd(UART4, ENABLE);
+
+#endif
+	
 
 }
 
