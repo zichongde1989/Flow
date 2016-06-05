@@ -1,8 +1,11 @@
-## PX4Flow Firmware
+## PX4Flow Firmware (Support Maxbotix XL-MaxSonar-EZ Series ultrasonic module MB1240)
 
-[![Build Status](https://travis-ci.org/PX4/Flow.svg?branch=master)](https://travis-ci.org/PX4/Flow)
+```
+#请注意，该版本光流固件仅支持maxbotix公司的XL-MaxSonar®- EZ™ Series超声波模块MB1240，如果您使用的超声波模块是其他版本，请下载官方的光流固件。
+#Please note, This version of the optical flow firmware only support maxbotix company XL-MaxSonar-EZ series ultrasonic named MB1240. If you use the ultrasonic module is the other version, please download the primitive firmware. 
+This version firmware uses the PIN3-AN of XL-MaxSonar-EZ Series ultrasonic's which output analopg voltage to get the range data,instead of using serial!
 
-[![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/PX4/Firmware?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+```
 
 PX4 FLOW is a smart camera processing optical flow directly on the camera module. It is optimized for processing and outputs images only for development purposes. Its main output is a UART or I2C stream of flow measurements at ~400 Hz.
 
