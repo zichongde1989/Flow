@@ -1,8 +1,8 @@
 ## PX4Flow Firmware (Support Maxbotix XL-MaxSonar-EZ Series ultrasonic module MB1240)
 
 ```
-#«Î◊¢“‚£¨∏√∞Ê±æπ‚¡˜πÃº˛Ωˆ÷ß≥÷maxbotixπ´ÀæµƒXL-MaxSonar?- EZ? Series≥¨…˘≤®ƒ£øÈMB1240£¨»Áπ˚ƒ˙ π”√µƒ≥¨…˘≤®ƒ£øÈ «∆‰À˚∞Ê±æ£¨«Îœ¬‘ÿπŸ∑Ωµƒπ‚¡˜πÃº˛°£
-#Please note, This version of the optical flow firmware only support maxbotix company XL-MaxSonar-EZ series ultrasonic named MB1240. If you use the ultrasonic module is the other version, please download the primitive firmware. 
+«Î◊¢“‚£¨∏√∞Ê±æπ‚¡˜πÃº˛Ωˆ÷ß≥÷maxbotixπ´ÀæµƒXL-MaxSonar?- EZ? Series≥¨…˘≤®ƒ£øÈMB1240£¨»Áπ˚ƒ˙ π”√µƒ≥¨…˘≤®ƒ£øÈ «∆‰À˚∞Ê±æ£¨«Îœ¬‘ÿπŸ∑Ωµƒπ‚¡˜πÃº˛°£
+Please note, This version of the optical flow firmware only support maxbotix company XL-MaxSonar-EZ series ultrasonic named MB1240. If you use the ultrasonic module is the other version, please download the primitive firmware. 
 This version firmware uses the PIN3-AN of XL-MaxSonar-EZ Series ultrasonic's which output analopg voltage to get the range data,instead of using serial! 
 
 ```
@@ -14,6 +14,13 @@ This version firmware uses the PIN3-AN of XL-MaxSonar-EZ Series ultrasonic's whi
 –ﬁ∏ƒ“¿Õ–µƒ‘≠¿Ì£∫MB1240¿‡≥¨…˘≤®ƒ£øÈµƒ“˝Ω≈3 ‰≥ˆ”Îæ‡¿Î≥…’˝±»µƒµÁ—π–≈œ¢£¨ø…“‘¿˚”√π‚¡˜ƒ£øÈƒ⁄≤øµƒADC≤…ºØ≤¢◊™ªªŒ™æ‡¿Î–≈œ¢°£
 
 –ﬁ∏ƒ‘≠‘Ú£∫≤ª∏ƒ±‰‘≠”–µƒ≥Ã–Ú¬ﬂº≠Ω·ππ£¨Õ®π˝∫ÍSONAR_USING_MB1240 —°‘Òπ¶ƒ‹
+=======
+#ËØ∑Ê≥®ÊÑèÔºåËØ•ÁâàÊú¨ÂÖâÊµÅÂõ∫‰ª∂‰ªÖÊîØÊåÅmaxbotixÂÖ¨Âè∏ÁöÑXL-MaxSonar¬Æ- EZ‚Ñ¢ SeriesË∂ÖÂ£∞Ê≥¢Ê®°ÂùóMB1240ÔºåÂ¶ÇÊûúÊÇ®‰ΩøÁî®ÁöÑË∂ÖÂ£∞Ê≥¢Ê®°ÂùóÊòØÂÖ∂‰ªñÁâàÊú¨ÔºåËØ∑‰∏ãËΩΩÂÆòÊñπÁöÑÂÖâÊµÅÂõ∫‰ª∂„ÄÇ
+#Please note, This version of the optical flow firmware only support maxbotix company XL-MaxSonar-EZ series ultrasonic named MB1240. If you use the ultrasonic module is the other version, please download the primitive firmware. 
+This version firmware uses the PIN3-AN of XL-MaxSonar-EZ Series ultrasonic's which output analopg voltage to get the range data,instead of using serial! 
+
+```
+>>>>>>> ef7c686ddab143c0b6afadd9576895b92a3d4073
 
 ## π”√∑Ω∑®
 PX4 FLOW is a smart camera processing optical flow directly on the camera module. It is optimized for processing and outputs images only for development purposes. Its main output is a UART or I2C stream of flow measurements at ~400 Hz.
