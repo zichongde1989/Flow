@@ -38,16 +38,23 @@
 #include <stdbool.h>
 #include "settings.h"
 
+#define SONAR_USING_MB1240
+
+
 /**
  * @brief  Configures the sonar sensor Peripheral.
  */
 void sonar_config(void);
 
+#ifdef SONAR_USING_MB1240
+void ADC_IRQHandler(void);
+
+#else
 /**
   * @brief  Sonar interrupt handler
   */
 void UART4_IRQHandler(void);
-
+#endif
 /**
   * @brief  Triggers the sonar to measure the next value
   */

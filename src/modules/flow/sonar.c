@@ -52,13 +52,14 @@
 #include "sonar.h"
 #include "sonar_mode_filter.h"
 
-#ifdef SONAR_READ_FROM_ADC
-#define VCC (5.0)
+#ifdef SONAR_USING_MB1240
+#define VCC (3.3)
+#define ADCBITWIDTH  (12)
+#define ADCDATA2VOLTAGE_FACTOR  (VCC/(2^ADCBITWIDTH))
 #define VOLTAGE2DISTENCE_FACTOR (VCC/1024.0) /** analog voltage with a scaling factor,mV->cm */
-
 #define SONAR_SCALE	100.0f
 #define SONAR_MIN	0.20f		/** 0.20m sonar minimum distance */
-#define SONAR_MAX	5.0f		/** 5.0m sonar maximum distance */
+#define SONAR_MAX	7.0f		/** 5.0m sonar maximum distance */
 #else
 #define SONAR_SCALE	1000.0f
 #define SONAR_MIN	0.15f		/** 0.15m sonar minimum distance */
@@ -67,7 +68,7 @@
 #define atoi(nptr)  strtol((nptr), NULL, 10)
 extern uint32_t get_boot_time_us(void);
 
-#ifndef SONAR_READ_FROM_ADC
+#ifndef SONAR_USING_MB1240
 static char data_buffer[5]; // array for collecting decoded data
 #endif
 static volatile uint32_t last_measure_time = 0;
@@ -75,7 +76,7 @@ static volatile uint32_t measure_time = 0;
 static volatile float dt = 0.0f;
 static volatile int valid_data;
 
-#ifndef SONAR_READ_FROM_ADC
+#ifndef SONAR_USING_MB1240
 static volatile int data_counter = 0;
 static volatile int data_valid = 0;
 #endif
@@ -96,20 +97,6 @@ float sonar_mode = 0.0f;
 bool sonar_valid = false;				/**< the mode of all sonar measurements */
 
 
-#ifdef	SONAR_READ_FROM_ADC
-/**
-  * @brief  Triggers the ADC to measure the next value
-  *
-  * It will trigger a interrupt when measure complete 
-  *
-  * @author zcd
-*/
-void adc_trigger(){
-  /* Start the ADC Convesation to get the last value */ 
-  ADC_SoftwareStartConv(ADC1, ENABLE);
-}  
-#endif
-
 
 /**
   * @brief  Triggers the sonar to measure the next value
@@ -118,8 +105,10 @@ void adc_trigger(){
   */
 void sonar_trigger(){
 	GPIO_SetBits(GPIOE, GPIO_Pin_8);
-#ifdef	SONAR_READ_FROM_ADC
-	adc_trigger();	
+	
+#ifdef	SONAR_USING_MB1240
+	/* Start the ADC Convesation to get the last value */ 
+	ADC_SoftwareStartConv( ADC1 );
 #endif
 
 }
@@ -127,17 +116,18 @@ void sonar_trigger(){
 
 
 
-#ifdef	SONAR_READ_FROM_ADC
+#ifdef	SONAR_USING_MB1240
 
 /**
   * @brief  Sonar adc interrupt handler
   * @author zcd
   *
   */
-void ADC1_IRQHandler(void)
+void ADC_IRQHandler(void)
+
 {
 
-	if (USART_GetITStatus(ADC1, ADC_IT_EOC) != RESET)
+	if ( ADC_GetITStatus(ADC1, ADC_IT_EOC) != RESET)
 	{
 		/* Read one byte from the receive ADC register */
 		uint16_t data = ADC_GetConversionValue( ADC1 ) ;
@@ -146,7 +136,10 @@ void ADC1_IRQHandler(void)
 		GPIO_ResetBits(GPIOE, GPIO_Pin_8);
 
 		/* caculate the distence, mV -- > cm */
-		int temp = data * VOLTAGE2DISTENCE_FACTOR;
+//		long temp = data>>2;//data>>2=data/4=data * 1000 * ADCDATA2VOLTAGE_FACTOR/ VOLTAGE2DISTENCE_FACTOR;
+		float temp1 = data * 3.3/4096;
+		int temp = (temp1 * 204 );
+
 		
 		/* use real-world maximum ranges to cut off pure noise */
 		if ((temp > SONAR_MIN*SONAR_SCALE) && (temp < SONAR_MAX*SONAR_SCALE))
@@ -170,22 +163,21 @@ void ADC1_IRQHandler(void)
 
 		ADC_ClearITPendingBit( ADC1, ADC_IT_EOC );
 	}
-	else if (USART_GetITStatus(ADC1, ADC_IT_AWD) != RESET)
+	else if ( ADC_GetITStatus(ADC1, ADC_IT_AWD) != RESET)
 	{
 		ADC_ClearITPendingBit( ADC1, ADC_IT_AWD );
 	}
-	else if (USART_GetITStatus(ADC1, ADC_IT_JEOC) != RESET)
+	else if ( ADC_GetITStatus(ADC1, ADC_IT_JEOC) != RESET)
 	{
 		ADC_ClearITPendingBit( ADC1, ADC_IT_JEOC );
 	}
-	else if (USART_GetITStatus(ADC1, ADC_IT_OVR) != RESET)
+	else if ( ADC_GetITStatus(ADC1, ADC_IT_OVR) != RESET)
 	{
 		ADC_ClearITPendingBit( ADC1, ADC_IT_OVR );
 	}
 }
 
-#endif
-
+#else
 
 /**
   * @brief  Sonar interrupt handler
@@ -251,6 +243,9 @@ void UART4_IRQHandler(void)
 	}
 }
 
+#endif
+
+
 /**
   * @brief  Basic Kalman filter
   */
@@ -308,7 +303,7 @@ void sonar_config(void)
 
 	GPIO_InitTypeDef GPIO_InitStructure;
 
-#ifdef	SONAR_READ_FROM_ADC
+#ifdef	SONAR_USING_MB1240
 	/* Enable the ADC interface clock using */
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_ADC1, ENABLE); 
 
@@ -329,10 +324,10 @@ void sonar_config(void)
 	/* ADC1 common configuration */
 	ADC_CommonInitTypeDef ADC_CommonInitStruct;
 	ADC_CommonStructInit( &ADC_CommonInitStruct );
-	ADC_CommonInitStruct->ADC_Mode = ADC_Mode_Independent;						/* Initialize the ADC_Mode member */
-	ADC_CommonInitStruct->ADC_Prescaler = ADC_Prescaler_Div2;					/* initialize the ADC_Prescaler member */
-	ADC_CommonInitStruct->ADC_DMAAccessMode = ADC_DMAAccessMode_Disabled;		/* Initialize the ADC_DMAAccessMode member */
-	ADC_CommonInitStruct->ADC_TwoSamplingDelay = ADC_TwoSamplingDelay_5Cycles;	/* Initialize the ADC_TwoSamplingDelay member */
+	ADC_CommonInitStruct.ADC_Mode = ADC_Mode_Independent;						/* Initialize the ADC_Mode member */
+	ADC_CommonInitStruct.ADC_Prescaler = ADC_Prescaler_Div2;					/* initialize the ADC_Prescaler member */
+	ADC_CommonInitStruct.ADC_DMAAccessMode = ADC_DMAAccessMode_Disabled;		/* Initialize the ADC_DMAAccessMode member */
+	ADC_CommonInitStruct.ADC_TwoSamplingDelay = ADC_TwoSamplingDelay_5Cycles;	/* Initialize the ADC_TwoSamplingDelay member */
 	ADC_CommonInit( &ADC_CommonInitStruct );	
 
 	ADC_InitTypeDef ADC_InitStructure;
@@ -356,7 +351,7 @@ void sonar_config(void)
 
 	/* Enable the ADCx Interrupt */
 	NVIC_InitStructure.NVIC_IRQChannel = ADC_IRQn;
-	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 0;
+	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
 	NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
 	NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
 	NVIC_Init(&NVIC_InitStructure);
@@ -368,7 +363,7 @@ void sonar_config(void)
 	ADC_Cmd(ADC1, ENABLE);
 
 	/* Start the ADC Convesation */ 
-	ADC_SoftwareStartConv(ADC1, ENABLE);
+	ADC_SoftwareStartConv( ADC1 );
 
 #else
 	/* Enable GPIO clocks */
