@@ -9,11 +9,11 @@ This version firmware uses the PIN3-AN of XL-MaxSonar-EZ Series ultrasonic's whi
 ##修改说明
 修改代码主要是在文件 sonar.c文件里面。
 修改原因：我们错误的购买了超声波模块MB1240，该类超声波模块输出RS232电平的串口数据，但是我们购买的光流模块恰好不支持这种电平。所幸的是，超声波除了从串口输出数据外，还从引脚2以脉宽的方式输测量信息，以及从引脚3以电压的方式输出测量信息。因此，需要修改光流，使其能够利用引脚3输出的电压信息获取超声波的测量值。
+
 即：
 修改的目标：添加光流模块对MB1240类型的超声波支持；
-修改依托的原理：MB1240类超声波模块的引脚3输出与距离成正比的电压信息，可以利用光流模块内部的ADC采集并转换为距离信息。
-修改原则：不改变原有的程序逻辑结构，通过宏SONAR_USING_MB1240 选择功能
-This version firmware uses the PIN3-AN of XL-MaxSonar-EZ Series ultrasonic's which output analopg voltage to get the range data,instead of using serial! 
+修改依托的原理：MB1240类超声波模块的引脚3输出与距离成正比的电压信息，可以利用光流模块内部的ADC采集并转换为距离信息；
+修改原则：不改变原有的程序逻辑结构，通过宏SONAR_USING_MB1240 选择功能；
 
 
 ##使用方法
