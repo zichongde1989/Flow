@@ -3,7 +3,7 @@
 ```
 #请注意，该版本光流固件仅支持maxbotix公司的XL-MaxSonar®- EZ™ Series超声波模块MB1240，如果您使用的超声波模块是其他版本，请下载官方的光流固件。
 #Please note, This version of the optical flow firmware only support maxbotix company XL-MaxSonar-EZ series ultrasonic named MB1240. If you use the ultrasonic module is the other version, please download the primitive firmware. 
-This version firmware uses the PIN3-AN of XL-MaxSonar-EZ Series ultrasonic's which output analopg voltage to get the range data,instead of using serial!
+This version firmware uses the PIN3-AN of XL-MaxSonar-EZ Series ultrasonic's which output analopg voltage to get the range data,instead of using serial! 
 
 ```
 
