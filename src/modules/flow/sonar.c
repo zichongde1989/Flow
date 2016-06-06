@@ -53,10 +53,13 @@
 #include "sonar_mode_filter.h"
 
 #ifdef SONAR_USING_MB1240
-#define VCC (3.3)
+#define SONAR_VCC (5.0)
+#define ADC_VREF (3.3)
 #define ADCBITWIDTH  (12)
-#define ADCDATA2VOLTAGE_FACTOR  (VCC/(2^ADCBITWIDTH))
-#define VOLTAGE2DISTENCE_FACTOR (VCC/1024.0) /** analog voltage with a scaling factor,mV->cm */
+#define ADCDATA2VOLTAGE_FACTOR  (ADC_VREF/(2^ADCBITWIDTH))
+#define VOLTAGE2DISTENCE_FACTOR (SONAR_VCC/1024.0) /** analog voltage with a scaling factor,mV->cm */
+#define COMPENSATION  (1.1235)	/* The Compensation factor */
+
 #define SONAR_SCALE	100.0f
 #define SONAR_MIN	0.20f		/** 0.20m sonar minimum distance */
 #define SONAR_MAX	7.0f		/** 5.0m sonar maximum distance */
@@ -135,10 +138,12 @@ void ADC_IRQHandler(void)
 		/* set sonar pin 4 to low -> we want triggered mode */
 		GPIO_ResetBits(GPIOE, GPIO_Pin_8);
 
-		/* caculate the distence, mV -- > cm */
-//		long temp = data>>2;//data>>2=data/4=data * 1000 * ADCDATA2VOLTAGE_FACTOR/ VOLTAGE2DISTENCE_FACTOR;
-		float temp1 = data * 3.3/4096;
-		int temp = (temp1 * 204 );
+		/* caculate the distence, V -- > cm */
+		double temp1 = data * ADC_VREF/SONAR_VCC/4; //data * ADCDATA2VOLTAGE_FACTOR/ VOLTAGE2DISTENCE_FACTOR;
+		int temp = temp1 * COMPENSATION;			//do the caliburation(or compensation?) 
+
+//		float temp1 = data * 3.3/4096;
+//		int temp = (temp1 * 204 );
 
 		
 		/* use real-world maximum ranges to cut off pure noise */
